@@ -106,7 +106,7 @@
   <script>
     // GitHub last updated
     async function getLastUpdatedTime() {
-      const username = 'am05742';
+      const username = 'FEPSFY6901629';
       const repo = 'FY6901629';
       const url = `https://api.github.com/repos/${username}/${repo}/commits`;
       const el = document.getElementById('last-updated');
@@ -156,92 +156,3 @@
   </script>
 </body>
 </html>
-
-
-<script>
-  async function getLastUpdatedTime() {
-    const owner = 'FEPSFY6901629';   // <- from your screenshot
-    const repo  = 'FY6901629';       // <- repo name
-    const el    = document.getElementById('last-updated');
-
-    // Add a small debug panel so we can see what’s happening
-    let dbg = document.getElementById('gh-debug');
-    if (!dbg) {
-      dbg = document.createElement('pre');
-      dbg.id = 'gh-debug';
-      dbg.style.whiteSpace = 'pre-wrap';
-      dbg.style.fontSize = '12px';
-      dbg.style.background = '#f7f7f7';
-      dbg.style.padding = '8px';
-      dbg.style.border = '1px solid #ddd';
-      dbg.style.marginTop = '8px';
-      el.insertAdjacentElement('afterend', dbg);
-    }
-    dbg.textContent = 'Debug: starting…';
-
-    try {
-      // 1) Find default branch
-      const repoUrl = `https://api.github.com/repos/${owner}/${repo}`;
-      dbg.textContent = `GET ${repoUrl}\n`;
-      const repoRes = await fetch(repoUrl, { headers: { 'Accept': 'application/vnd.github.v3+json' } });
-      const repoTxt = await repoRes.text();
-      dbg.textContent += `→ ${repoRes.status} ${repoRes.statusText}\n${repoTxt}\n\n`;
-      if (!repoRes.ok) throw new Error(`Repo lookup failed (${repoRes.status})`);
-
-      const repoJson = JSON.parse(repoTxt || '{}');
-      const defaultBranch = repoJson.default_branch || 'main';
-      dbg.textContent += `default_branch: ${defaultBranch}\n\n`;
-
-      // 2) Try latest commit on the repo (no file filter)
-      const commitsUrl = `https://api.github.com/repos/${owner}/${repo}/commits?sha=${encodeURIComponent(defaultBranch)}&per_page=1`;
-      dbg.textContent += `GET ${commitsUrl}\n`;
-      const commitsRes = await fetch(commitsUrl, { headers: { 'Accept': 'application/vnd.github.v3+json' } });
-      const commitsTxt = await commitsRes.text();
-      dbg.textContent += `→ ${commitsRes.status} ${commitsRes.statusText}\n${commitsTxt}\n\n`;
-      if (!commitsRes.ok) throw new Error(`Commits fetch failed (${commitsRes.status})`);
-
-      let commits = [];
-      try { commits = JSON.parse(commitsTxt) || []; } catch {}
-
-      if (Array.isArray(commits) && commits.length && commits[0]?.commit?.committer?.date) {
-        const dt = new Date(commits[0].commit.committer.date);
-        el.textContent = `Last Modified Time: ${dt.toLocaleString()}`;
-        return;
-      }
-
-      // 3) Fallback: try commits that touched index.html specifically
-      const pathUrl = `https://api.github.com/repos/${owner}/${repo}/commits?sha=${encodeURIComponent(defaultBranch)}&per_page=1&path=index.html`;
-      dbg.textContent += `Fallback GET ${pathUrl}\n`;
-      const pathRes = await fetch(pathUrl, { headers: { 'Accept': 'application/vnd.github.v3+json' } });
-      const pathTxt = await pathRes.text();
-      dbg.textContent += `→ ${pathRes.status} ${pathRes.statusText}\n${pathTxt}\n\n`;
-      if (!pathRes.ok) throw new Error(`Commits (with path) fetch failed (${pathRes.status})`);
-
-      let pathCommits = [];
-      try { pathCommits = JSON.parse(pathTxt) || []; } catch {}
-
-      if (Array.isArray(pathCommits) && pathCommits.length && pathCommits[0]?.commit?.committer?.date) {
-        const dt = new Date(pathCommits[0].commit.committer.date);
-        el.textContent = `Last Modified Time: ${dt.toLocaleString()}`;
-      } else {
-        el.textContent = `No commits found on "${defaultBranch}".`;
-      }
-    } catch (err) {
-      const msg = String(err && err.message ? err.message : err);
-      el.textContent = 'Could not fetch last update. See debug below.';
-      dbg.textContent += `\nERROR: ${msg}\n\nCommon causes:\n- Repo is private (API returns 404 when unauthenticated)\n- Owner/repo name typo\n- Rate limit exceeded (403)\n- Different default branch\n`;
-      console.error(err);
-    }
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    getLastUpdatedTime();
-    const btn = document.getElementById('verify-btn');
-    if (btn) btn.addEventListener('click', async () => {
-      document.getElementById('last-updated').textContent = 'Verifying...';
-      await getLastUpdatedTime();
-      alert('Checked GitHub API again.');
-    });
-  });
-</script>
-
